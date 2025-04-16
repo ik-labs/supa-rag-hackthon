@@ -6,25 +6,33 @@ import { supabase } from "@/lib/supabaseClient";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  loading: boolean;
   signInWithGitHub: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+import { useRouter } from "next/navigation";
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const router = useRouter();
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
     });
     // Get current session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
+      setLoading(false);
     });
     return () => {
       listener.subscription.unsubscribe();
@@ -32,7 +40,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signInWithGitHub = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "github" });
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "github",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : undefined,
+      },
+    });
+    // If using PKCE flow, Supabase will handle redirect. Otherwise, you may want to route manually.
+    if (error) {
+      // Optionally display error to user
+      console.error("GitHub sign-in error", error.message);
+    }
   };
 
   const signOut = async () => {
@@ -40,7 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signInWithGitHub, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGitHub, signOut }}>
       {children}
     </AuthContext.Provider>
   );
