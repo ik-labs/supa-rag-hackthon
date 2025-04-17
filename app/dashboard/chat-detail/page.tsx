@@ -184,29 +184,36 @@ function ChatDetailInner() {
                       <ReactMarkdown
                         components={{
                           code(props: MarkdownCodeProps) {
-                            const { inline, className, children, ...rest } = props;
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline ? (
-                              <SyntaxHighlighter
-                                language={match?.[1] || 'plaintext'}
-                                PreTag="div"
-                                style={oneDark}
-                                customStyle={{
-                                  borderRadius: '0.5rem',
-                                  padding: '1rem',
-                                  fontSize: '0.95em',
-                                  background: '#18181b',
-                                  overflowX: 'auto',
-                                  ...(rest && rest.style ? rest.style : {})
-                                }}
-                                {...Object.fromEntries(Object.entries(rest || {}).filter(([k]) => k !== 'style'))}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className="bg-zinc-200 px-1 rounded font-mono text-sm">{children}</code>
-                            );
-                          }
+  const { inline, className, children, ...rest } = props;
+  const match = /language-(\w+)/.exec(className || '');
+  if (!inline) {
+    // Block code: wrap in <pre> to avoid <div> inside <p>
+    return (
+      <pre style={{ padding: 0, margin: 0, background: 'none' }}>
+        <SyntaxHighlighter
+          language={match?.[1] || 'plaintext'}
+          PreTag="div"
+          style={oneDark}
+          customStyle={{
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            fontSize: '0.95em',
+            background: '#18181b',
+            overflowX: 'auto',
+            ...(rest && rest.style ? rest.style : {})
+          }}
+          {...Object.fromEntries(Object.entries(rest || {}).filter(([k]) => k !== 'style'))}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      </pre>
+    );
+  }
+  // Inline code
+  return (
+    <code className="bg-zinc-200 px-1 rounded font-mono text-sm">{children}</code>
+  );
+}
                         }}
                       >
                         {msg.text}

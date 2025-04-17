@@ -96,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })),
   }));
 
-  console.log('Structured context for LLM:', JSON.stringify(context, null, 2));
+  // console.log('Structured context for LLM:', JSON.stringify(context, null, 2));
 
   // If we have relevant discussions, call Gemini 2.0 Flash for answer generation
   let answer = null;
@@ -115,7 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         model: google('gemini-2.0-flash'),
         prompt: systemPrompt,
       });
-      console.log('Gemini LLM output:', llmAnswer);
+      // console.log('Gemini LLM output:', llmAnswer);
       answer = llmAnswer;
     } catch (err) {
       console.error('Gemini LLM error:', err);
