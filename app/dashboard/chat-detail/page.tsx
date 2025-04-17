@@ -17,7 +17,7 @@ function getInitials(name: string) {
 
 export default function ChatDetail() {
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const initialMessage = searchParams?.get("query") || "";
   const [messages, setMessages] = useState<{type: "user"|"bot", text: string}[]>(
     initialMessage
@@ -38,24 +38,64 @@ export default function ChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Generate embedding for the initial query and log it
+  // Generate embedding for the initial query and fetch search results
   useEffect(() => {
-    async function fetchEmbedding() {
+    async function fetchEmbeddingAndSearch() {
       if (initialMessage) {
         try {
-          const res = await fetch('/api/embed', {
+          const embedRes = await fetch('/api/embed-supabase', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: initialMessage }),
           });
-          const data = await res.json();
-          console.log('Embedding for initial query:', data.embedding);
+          const embedData = await embedRes.json();
+          if (!embedData.embedding) throw new Error('No embedding returned');
+
+          // Call /api/search with the embedding
+          const accessToken = session?.access_token;
+          const searchRes = await fetch('/api/search', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ embedding: embedData.embedding, topN: 5 }),
+          });
+          const searchData = await searchRes.json();
+
+          // Format a bot message with the top discussion and up to 3 comments
+          if (searchData.discussions && searchData.discussions.length > 0) {
+            const topDiscussion = searchData.discussions[0];
+            let message = `**${topDiscussion.title}**\n\n${topDiscussion.body}`;
+            if (searchData.comments && searchData.comments.length > 0) {
+              const relevantComments = searchData.comments.filter((c: any) => c.discussion_id === topDiscussion.discussion_id).slice(0, 3);
+              if (relevantComments.length > 0) {
+                message += '\n\n---\n**Top Comments:**';
+                relevantComments.forEach((c: any, idx: number) => {
+                  message += `\n- ${c.body}`;
+                });
+              }
+            }
+            setMessages(prev => [
+              ...prev,
+              { type: 'bot', text: message }
+            ]);
+          } else {
+            setMessages(prev => [
+              ...prev,
+              { type: 'bot', text: 'No relevant discussions found.' }
+            ]);
+          }
         } catch (err) {
-          console.error('Error fetching embedding:', err);
+          setMessages(prev => [
+            ...prev,
+            { type: 'bot', text: 'Error fetching results.' }
+          ]);
+          console.error('Error fetching embedding/search:', err);
         }
       }
     }
-    fetchEmbedding();
+    fetchEmbeddingAndSearch();
     // Only run on mount or when initialMessage changes
   }, [initialMessage]);
 
