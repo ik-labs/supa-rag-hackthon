@@ -1,5 +1,6 @@
 "use client";
 import ReactMarkdown from 'react-markdown';
+import Image from 'next/image';
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 // Removed Card and CardContent for seamless look
@@ -118,7 +119,13 @@ export default function ChatDetail() {
                     </div>
                   </div>
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt={userName} className="w-9 h-9 rounded-full border object-cover" />
+                    <Image
+                      src={avatarUrl}
+                      alt={userName}
+                      width={36}
+                      height={36}
+                      className="w-9 h-9 rounded-full border object-cover"
+                    />
                   ) : (
                     <div className="w-9 h-9 bg-muted text-muted-foreground rounded-full flex items-center justify-center font-bold">
                       {getInitials(userName)}
