@@ -1,5 +1,7 @@
 "use client";
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import Image from 'next/image';
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -119,44 +121,75 @@ function ChatDetailInner() {
       <div className="w-full max-w-3xl mx-auto flex flex-col h-[95vh]">
         <div className="font-semibold text-xl text-zinc-800 px-0 pt-4 pb-2 text-center">Supabase Bot Chat</div>
         <div className="flex-1 overflow-y-auto px-0 pb-2">
-          <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-            {messages.length === 0 && (
-              <div className="text-zinc-400 text-center">No messages yet. Start the conversation!</div>
-            )}
-            {messages.map((msg, i) => (
-              msg.type === "user" ? (
-                <div key={i} className="flex items-end justify-end gap-2">
-                  <div className="flex flex-col items-end">
-                    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-2xl rounded-br-sm shadow max-w-[60vw]">
-                      {msg.text}
+          <div className="overflow-x-auto max-w-full">
+            <div className="flex flex-col gap-6 max-w-full sm:max-w-2xl mx-auto break-words">
+              {messages.length === 0 && (
+                <div className="text-zinc-400 text-center">No messages yet. Start the conversation!</div>
+              )}
+              {messages.map((msg, i) => (
+                msg.type === "user" ? (
+                  <div key={i} className="flex items-end justify-end gap-2">
+                    <div className="flex flex-col items-end">
+                      <div className="bg-primary text-primary-foreground px-4 py-2 rounded-2xl rounded-br-sm shadow max-w-[60vw] break-words">
+                        {msg.text}
+                      </div>
+                      {avatarUrl ? (
+                        <Image
+                          src={avatarUrl}
+                          alt={userName}
+                          width={36}
+                          height={36}
+                          className="w-9 h-9 rounded-full border object-cover"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 bg-muted text-muted-foreground rounded-full flex items-center justify-center font-bold">
+                          {getInitials(userName)}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {avatarUrl ? (
-                    <Image
-                      src={avatarUrl}
-                      alt={userName}
-                      width={36}
-                      height={36}
-                      className="w-9 h-9 rounded-full border object-cover"
-                    />
-                  ) : (
-                    <div className="w-9 h-9 bg-muted text-muted-foreground rounded-full flex items-center justify-center font-bold">
-                      {getInitials(userName)}
+                ) : (
+                  <div key={i} className="flex items-end justify-start gap-2">
+                    <div className="w-9 h-9 bg-green-600 text-white rounded-full flex items-center justify-center">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zm0 7.5L4.21 7 12 3.5 19.79 7 12 9.5zm10 2.5l-10 5-10-5v6l10 5 10-5v-6z"></path></svg>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div key={i} className="flex items-end justify-start gap-2">
-                  <div className="w-9 h-9 bg-green-600 text-white rounded-full flex items-center justify-center">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zm0 7.5L4.21 7 12 3.5 19.79 7 12 9.5zm10 2.5l-10 5-10-5v6l10 5 10-5v-6z"></path></svg>
+                    <div className="bg-zinc-100 px-4 py-2 rounded-2xl rounded-bl-sm shadow text-zinc-800 max-w-[60vw] break-words">
+                      <ReactMarkdown
+                        components={{
+                          code(props: any) {
+                            const { inline, className, children, ...rest } = props as any;
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline ? (
+                              <SyntaxHighlighter
+                                style={oneDark}
+                                language={match?.[1] || 'plaintext'}
+                                PreTag="div"
+                                style={{
+                                  borderRadius: '0.5rem',
+                                  padding: '1rem',
+                                  fontSize: '0.95em',
+                                  background: '#18181b',
+                                  overflowX: 'auto',
+                                  ...(rest.style || {})
+                                }}
+                                {...Object.fromEntries(Object.entries(rest).filter(([k]) => k !== 'style'))}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code className="bg-zinc-200 px-1 rounded font-mono text-sm">{children}</code>
+                            );
+                          }
+                        }}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                  <div className="bg-zinc-100 px-4 py-2 rounded-2xl rounded-bl-sm shadow text-zinc-800 max-w-[60vw]">
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
-                  </div>
-                </div>
-              )
-            ))}
-            <div ref={messagesEndRef} />
+                )
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
         <form onSubmit={handleSend} className="flex gap-2 items-end max-w-2xl mx-auto w-full py-4 sticky bottom-0 bg-transparent">
