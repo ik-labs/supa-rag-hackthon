@@ -1,5 +1,5 @@
 "use client";
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
@@ -46,57 +46,82 @@ function ChatDetailInner() {
 
   // Generate embedding for the initial query and fetch Gemini answer
   // Shared function to fetch embedding and LLM answer for any query
-  async function fetchEmbeddingAndGeminiForQuery(query: string, accessToken?: string) {
-    try {
-      const embedRes = await fetch('/api/embed-supabase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      const embedData = await embedRes.json();
-      if (!embedData.embedding) throw new Error('No embedding returned');
+  const fetchEmbeddingAndGeminiForQuery = useCallback(
+    async (query: string, accessToken: string | undefined, messagesForHistory: {type: "user"|"bot", text: string}[]) => {
+      try {
+        const embedRes = await fetch('/api/embed-supabase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        });
+        const embedData = await embedRes.json();
+        if (!embedData.embedding) throw new Error('No embedding returned');
 
-      // Prepare chat history for LLM (exclude the last 'thinking...' message)
-      const history = messages.filter(
-        (msg, idx) => !(idx === messages.length - 1 && msg.type === 'bot' && msg.text === '[Supabase Bot is thinking...]')
-      );
+        // Prepare chat history for LLM (exclude the last 'thinking...' message)
+        const history = messagesForHistory.filter(
+          (msg, idx) => !(idx === messagesForHistory.length - 1 && msg.type === 'bot' && msg.text === '[Supabase Bot is thinking...]')
+        );
 
-      // Call /api/search with the embedding and chat history
-      const searchRes = await fetch('/api/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ embedding: embedData.embedding, topN: 5, query, history }),
-      });
-      const searchData = await searchRes.json();
+        // Call /api/search with the embedding and chat history
+        const searchRes = await fetch('/api/search', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ embedding: embedData.embedding, topN: 5, query, history }),
+        });
+        const searchData = await searchRes.json();
 
-      // Show only Gemini LLM answer as bot response
-      if (searchData.answer) {
+        // Detect Gemini rate limit or quota errors
+        const errorText = (searchData.error || searchData.message || '').toLowerCase();
+        if (
+          errorText.includes('rate limit') ||
+          errorText.includes('quota') ||
+          errorText.includes('exceeded') ||
+          errorText.includes('too many requests')
+        ) {
+          window.alert('Gemini API rate limit or quota exceeded. Please try again later.');
+          setMessages(prev => [
+            ...prev,
+            { type: 'bot', text: 'Gemini API rate limit or quota exceeded. Please try again later.' }
+          ]);
+          return;
+        }
+
+        // Show only Gemini LLM answer as bot response
+        if (searchData.answer) {
+          setMessages(prev => [
+            ...prev,
+            { type: 'bot', text: searchData.answer }
+          ]);
+        } else {
+          setMessages(prev => [
+            ...prev,
+            { type: 'bot', text: 'No answer found.' }
+          ]);
+        }
+      } catch (err) {
         setMessages(prev => [
           ...prev,
-          { type: 'bot', text: searchData.answer }
+          { type: 'bot', text: 'Error fetching results.' }
         ]);
-      } else {
-        setMessages(prev => [
-          ...prev,
-          { type: 'bot', text: 'No answer found.' }
-        ]);
+        console.error('Error fetching embedding/search:', err);
       }
-    } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        { type: 'bot', text: 'Error fetching results.' }
-      ]);
-      console.error('Error fetching embedding/search:', err);
-    }
-  }
+    },
+    []
+  );
 
   // Initial query effect
   useEffect(() => {
     if (initialMessage && session?.access_token) {
-      fetchEmbeddingAndGeminiForQuery(initialMessage, session?.access_token);
+      fetchEmbeddingAndGeminiForQuery(
+        initialMessage,
+        session?.access_token,
+        [
+          { type: "user", text: initialMessage }
+        ]
+      );
     }
     // Only run on mount or when initialMessage changes
   }, [initialMessage, session?.access_token, fetchEmbeddingAndGeminiForQuery]);
@@ -111,7 +136,11 @@ function ChatDetailInner() {
       { type: "bot", text: "[Supabase Bot is thinking...]" }
     ]);
     setInput("");
-    await fetchEmbeddingAndGeminiForQuery(query, session?.access_token);
+    await fetchEmbeddingAndGeminiForQuery(query, session?.access_token, [
+      ...messages,
+      { type: "user", text: query },
+      { type: "bot", text: "[Supabase Bot is thinking...]" }
+    ]);
   }
 
   return (
