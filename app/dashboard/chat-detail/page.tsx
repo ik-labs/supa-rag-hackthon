@@ -1,4 +1,5 @@
 "use client";
+import ReactMarkdown from 'react-markdown';
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 // Removed Card and CardContent for seamless look
@@ -38,9 +39,9 @@ export default function ChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Generate embedding for the initial query and fetch search results
+  // Generate embedding for the initial query and fetch Gemini answer
   useEffect(() => {
-    async function fetchEmbeddingAndSearch() {
+    async function fetchEmbeddingAndGemini() {
       if (initialMessage) {
         try {
           const embedRes = await fetch('/api/embed-supabase', {
@@ -63,27 +64,16 @@ export default function ChatDetail() {
           });
           const searchData = await searchRes.json();
 
-          // Format a bot message with the top discussion and up to 3 comments
-          if (searchData.discussions && searchData.discussions.length > 0) {
-            const topDiscussion = searchData.discussions[0];
-            let message = `**${topDiscussion.title}**\n\n${topDiscussion.body}`;
-            if (searchData.comments && searchData.comments.length > 0) {
-              const relevantComments = searchData.comments.filter((c: any) => c.discussion_id === topDiscussion.discussion_id).slice(0, 3);
-              if (relevantComments.length > 0) {
-                message += '\n\n---\n**Top Comments:**';
-                relevantComments.forEach((c: any, idx: number) => {
-                  message += `\n- ${c.body}`;
-                });
-              }
-            }
+          // Show only Gemini LLM answer as bot response
+          if (searchData.answer) {
             setMessages(prev => [
               ...prev,
-              { type: 'bot', text: message }
+              { type: 'bot', text: searchData.answer }
             ]);
           } else {
             setMessages(prev => [
               ...prev,
-              { type: 'bot', text: 'No relevant discussions found.' }
+              { type: 'bot', text: 'No answer found.' }
             ]);
           }
         } catch (err) {
@@ -95,7 +85,7 @@ export default function ChatDetail() {
         }
       }
     }
-    fetchEmbeddingAndSearch();
+    fetchEmbeddingAndGemini();
     // Only run on mount or when initialMessage changes
   }, [initialMessage]);
 
@@ -141,7 +131,7 @@ export default function ChatDetail() {
                     <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zm0 7.5L4.21 7 12 3.5 19.79 7 12 9.5zm10 2.5l-10 5-10-5v6l10 5 10-5v-6z"></path></svg>
                   </div>
                   <div className="bg-zinc-100 px-4 py-2 rounded-2xl rounded-bl-sm shadow text-zinc-800 max-w-[60vw]">
-                    {msg.text}
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 </div>
               )
