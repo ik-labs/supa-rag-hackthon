@@ -18,9 +18,14 @@ function getInitials(name: string) {
 export default function ChatDetail() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const initialMessage = searchParams.get("query") || "";
+  const initialMessage = searchParams?.get("query") || "";
   const [messages, setMessages] = useState<{type: "user"|"bot", text: string}[]>(
-    initialMessage ? [{ type: "user", text: initialMessage }] : []
+    initialMessage
+      ? [
+          { type: "user", text: initialMessage },
+          { type: "bot", text: "[Supabase Bot is thinking...]" }
+        ]
+      : []
   );
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -33,12 +38,33 @@ export default function ChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Generate embedding for the initial query and log it
+  useEffect(() => {
+    async function fetchEmbedding() {
+      if (initialMessage) {
+        try {
+          const res = await fetch('/api/embed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: initialMessage }),
+          });
+          const data = await res.json();
+          console.log('Embedding for initial query:', data.embedding);
+        } catch (err) {
+          console.error('Error fetching embedding:', err);
+        }
+      }
+    }
+    fetchEmbedding();
+    // Only run on mount or when initialMessage changes
+  }, [initialMessage]);
+
   function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim()) return;
     setMessages([...messages, { type: "user", text: input }]);
     setInput("");
-    // Optionally: Add a fake bot response for demo
+    // Add a fake bot response for demo
     setTimeout(() => {
       setMessages((prev) => [...prev, { type: "bot", text: "[Supabase Bot is thinking...]" }]);
     }, 700);
