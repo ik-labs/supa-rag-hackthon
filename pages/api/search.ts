@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
+//implement upstash
 
 function getSupabaseClientWithJWT(req: NextApiRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
