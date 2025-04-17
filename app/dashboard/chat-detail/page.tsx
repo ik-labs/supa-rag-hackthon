@@ -1,15 +1,17 @@
 "use client";
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import Image from 'next/image';
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 // Removed Card and CardContent for seamless look
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useAuth } from "@/components/AuthProvider";
+
+type MarkdownCodeProps = React.ComponentProps<'code'> & { inline?: boolean };
 
 function getInitials(name: string) {
   return name
@@ -93,15 +95,11 @@ function ChatDetailInner() {
 
   // Initial query effect
   useEffect(() => {
-    if (initialMessage) {
-      setMessages([
-        { type: "user", text: initialMessage },
-        { type: "bot", text: "[Supabase Bot is thinking...]" }
-      ]);
+    if (initialMessage && session?.access_token) {
       fetchEmbeddingAndGeminiForQuery(initialMessage, session?.access_token);
     }
     // Only run on mount or when initialMessage changes
-  }, [initialMessage, session?.access_token]);
+  }, [initialMessage, session?.access_token, fetchEmbeddingAndGeminiForQuery]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -156,23 +154,23 @@ function ChatDetailInner() {
                     <div className="bg-zinc-100 px-4 py-2 rounded-2xl rounded-bl-sm shadow text-zinc-800 max-w-[60vw] break-words">
                       <ReactMarkdown
                         components={{
-                          code(props: any) {
-                            const { inline, className, children, ...rest } = props as any;
+                          code(props: MarkdownCodeProps) {
+                            const { inline, className, children, ...rest } = props;
                             const match = /language-(\w+)/.exec(className || '');
                             return !inline ? (
                               <SyntaxHighlighter
-                                style={oneDark}
                                 language={match?.[1] || 'plaintext'}
                                 PreTag="div"
-                                style={{
+                                style={oneDark}
+                                customStyle={{
                                   borderRadius: '0.5rem',
                                   padding: '1rem',
                                   fontSize: '0.95em',
                                   background: '#18181b',
                                   overflowX: 'auto',
-                                  ...(rest.style || {})
+                                  ...(rest && rest.style ? rest.style : {})
                                 }}
-                                {...Object.fromEntries(Object.entries(rest).filter(([k]) => k !== 'style'))}
+                                {...Object.fromEntries(Object.entries(rest || {}).filter(([k]) => k !== 'style'))}
                               >
                                 {String(children).replace(/\n$/, '')}
                               </SyntaxHighlighter>
@@ -213,8 +211,6 @@ function ChatDetailInner() {
     </div>
   );
 }
-
-import { Suspense } from "react";
 
 export default function ChatDetailPage() {
   return (
