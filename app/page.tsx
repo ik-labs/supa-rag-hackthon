@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 

@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ discussions: [], comments: [] });
   }
 
-  const discussionIds = discussions.map((d: any) => d.discussion_id);
+  const discussionIds = discussions.map((d: unknown) => d.discussion_id);
 
   // Step 2: Get top 20 relevant comments within these discussions
   const { data: comments, error: commentError } = await supabase.rpc('match_comments_in_discussions', {

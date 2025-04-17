@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { UserRound } from "lucide-react";
+
 
 export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
@@ -28,11 +29,7 @@ export default function Dashboard() {
         <CardContent className="p-8 flex flex-col gap-6">
           <div className="flex items-center gap-4">
             {user.user_metadata?.avatar_url ? (
-              <img
-                src={user.user_metadata.avatar_url}
-                alt={user.user_metadata.user_name || user.user_metadata.name || user.email}
-                className="w-12 h-12 rounded-full border object-cover"
-              />
+              <Image src={user.user_metadata.avatar_url} alt={user.user_metadata.user_name || user.user_metadata.name || user.email} width={36} height={36} className="w-9 h-9 rounded-full border object-cover" />
             ) : (
               <div className="bg-muted text-muted-foreground rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl">
                 {(user.user_metadata?.user_name || user.user_metadata?.name || user.email || "U").slice(0, 2).toUpperCase()}

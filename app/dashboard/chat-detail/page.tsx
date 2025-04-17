@@ -1,11 +1,11 @@
 "use client";
 import ReactMarkdown from 'react-markdown';
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 // Removed Card and CardContent for seamless look
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { UserRound } from "lucide-react";
+
 import { useAuth } from "@/components/AuthProvider";
 
 function getInitials(name: string) {
@@ -87,7 +87,7 @@ export default function ChatDetail() {
     }
     fetchEmbeddingAndGemini();
     // Only run on mount or when initialMessage changes
-  }, [initialMessage]);
+  }, [initialMessage, session?.access_token]);
 
   function handleSend(e: React.FormEvent) {
     e.preventDefault();
