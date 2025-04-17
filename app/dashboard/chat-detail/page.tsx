@@ -17,7 +17,7 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export default function ChatDetail() {
+function ChatDetailInner() {
   const searchParams = useSearchParams();
   const { user, session } = useAuth();
   const initialMessage = searchParams?.get("query") || "";
@@ -165,5 +165,15 @@ export default function ChatDetail() {
         </form>
       </div>
     </div>
+  );
+}
+
+import { Suspense } from "react";
+
+export default function ChatDetailPage() {
+  return (
+    <Suspense fallback={<div>Loading chat...</div>}>
+      <ChatDetailInner />
+    </Suspense>
   );
 }
