@@ -103,7 +103,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (discussions && discussions.length > 0) {
     try {
       const userQuery = req.body.query || '';
-      const systemPrompt = `You are a helpful assistant for a Supabase community chat.\n\n**Format your answer using Markdown with the following rules:**\n- Start with a main heading summarizing the answer (e.g., "# Supabase MFA & Access Issues").\n- Use subheadings (##) for each distinct issue or topic.\n- Use bullet points for lists and steps.\n- Use code blocks for commands, code, or error messages.\n- Use bold for important terms.\n- Add spacing between sections for readability.\n- If the answer is not in the context, say "I don't know based on the provided information."\n\nBe concise and clear.\n\nUser Question:\n${userQuery}\n\nRelevant Discussions and Comments:\n${context.map(d =>
+      const chatHistory = Array.isArray(req.body.history) ? req.body.history : [];
+      // Format chat history as markdown (user/bot turns)
+      const formattedHistory = chatHistory.length > 0
+        ? `\n\n---\n**Chat History:**\n${chatHistory.map((msg: {type: string, text: string}) => `${msg.type === 'user' ? 'User' : 'Bot'}: ${msg.text}`).join('\n')}`
+        : '';
+      const systemPrompt = `You are a helpful assistant for a Supabase community chat.\n\n**Format your answer using Markdown with the following rules:**\n- Start with a main heading summarizing the answer (e.g., "# Supabase MFA & Access Issues").\n- Use subheadings (##) for each distinct issue or topic.\n- Use bullet points for lists and steps.\n- Use code blocks for commands, code, or error messages.\n- Use bold for important terms.\n- Add spacing between sections for readability.\n- If the answer is not in the context, say "I don't know based on the provided information."\n\nBe concise and clear.${formattedHistory}\n\nUser Question:\n${userQuery}\n\nRelevant Discussions and Comments:\n${context.map(d =>
         `---\nDiscussion: ${d.title}\n${d.body}\nComments:\n${d.comments.map(c => `- ${c.body}`).join('\n')}`
       ).join('\n')}`;
       const { text: llmAnswer } = await generateText({

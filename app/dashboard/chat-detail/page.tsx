@@ -41,64 +41,77 @@ function ChatDetailInner() {
   }, [messages]);
 
   // Generate embedding for the initial query and fetch Gemini answer
-  useEffect(() => {
-    async function fetchEmbeddingAndGemini() {
-      if (initialMessage) {
-        try {
-          const embedRes = await fetch('/api/embed-supabase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: initialMessage }),
-          });
-          const embedData = await embedRes.json();
-          if (!embedData.embedding) throw new Error('No embedding returned');
+  // Shared function to fetch embedding and LLM answer for any query
+  async function fetchEmbeddingAndGeminiForQuery(query: string, accessToken?: string) {
+    try {
+      const embedRes = await fetch('/api/embed-supabase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const embedData = await embedRes.json();
+      if (!embedData.embedding) throw new Error('No embedding returned');
 
-          // Call /api/search with the embedding
-          const accessToken = session?.access_token;
-          const searchRes = await fetch('/api/search', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-            },
-            body: JSON.stringify({ embedding: embedData.embedding, topN: 5 }),
-          });
-          const searchData = await searchRes.json();
+      // Prepare chat history for LLM (exclude the last 'thinking...' message)
+      const history = messages.filter(
+        (msg, idx) => !(idx === messages.length - 1 && msg.type === 'bot' && msg.text === '[Supabase Bot is thinking...]')
+      );
 
-          // Show only Gemini LLM answer as bot response
-          if (searchData.answer) {
-            setMessages(prev => [
-              ...prev,
-              { type: 'bot', text: searchData.answer }
-            ]);
-          } else {
-            setMessages(prev => [
-              ...prev,
-              { type: 'bot', text: 'No answer found.' }
-            ]);
-          }
-        } catch (err) {
-          setMessages(prev => [
-            ...prev,
-            { type: 'bot', text: 'Error fetching results.' }
-          ]);
-          console.error('Error fetching embedding/search:', err);
-        }
+      // Call /api/search with the embedding and chat history
+      const searchRes = await fetch('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ embedding: embedData.embedding, topN: 5, query, history }),
+      });
+      const searchData = await searchRes.json();
+
+      // Show only Gemini LLM answer as bot response
+      if (searchData.answer) {
+        setMessages(prev => [
+          ...prev,
+          { type: 'bot', text: searchData.answer }
+        ]);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          { type: 'bot', text: 'No answer found.' }
+        ]);
       }
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        { type: 'bot', text: 'Error fetching results.' }
+      ]);
+      console.error('Error fetching embedding/search:', err);
     }
-    fetchEmbeddingAndGemini();
+  }
+
+  // Initial query effect
+  useEffect(() => {
+    if (initialMessage) {
+      setMessages([
+        { type: "user", text: initialMessage },
+        { type: "bot", text: "[Supabase Bot is thinking...]" }
+      ]);
+      fetchEmbeddingAndGeminiForQuery(initialMessage, session?.access_token);
+    }
     // Only run on mount or when initialMessage changes
   }, [initialMessage, session?.access_token]);
 
-  function handleSend(e: React.FormEvent) {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
-    setMessages([...messages, { type: "user", text: input }]);
+    const query = input.trim();
+    if (!query) return;
+    setMessages(prev => [
+      ...prev,
+      { type: "user", text: query },
+      { type: "bot", text: "[Supabase Bot is thinking...]" }
+    ]);
     setInput("");
-    // Add a fake bot response for demo
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { type: "bot", text: "[Supabase Bot is thinking...]" }]);
-    }, 700);
+    await fetchEmbeddingAndGeminiForQuery(query, session?.access_token);
   }
 
   return (
